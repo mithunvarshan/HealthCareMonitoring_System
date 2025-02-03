@@ -1,16 +1,19 @@
 import { useContext, useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { AppContext } from '../../context/AppContext';
 import { assets } from '/src/assets/assets_frontend/assets';
 import RelatedDoctors from '../../components/RelatedDoctors';
+import axios from 'axios';
+import { toast } from 'react-toastify';
 
 const Appointment = () => {
   const { docId } = useParams();
-  const { doctors, currencySymbol } = useContext(AppContext);
+  const { doctors, currencySymbol, backendUrl, token, getDoctorsData } = useContext(AppContext);
   const [docInfo, setDocInfo] = useState(null);
   const [docSlots, setDocSlots] = useState([]);
   const [selectedDateIndex, setSelectedDateIndex] = useState(null);
   const [selectedTimeSlot, setSelectedTimeSlot] = useState('');
+  const navigate = useNavigate();
 
   const daysOfWeek = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 
@@ -44,6 +47,7 @@ const Appointment = () => {
         timeSlots.push({ datetime: new Date(currentDate), time: formattedTime });
         currentDate.setMinutes(currentDate.getMinutes() + 30);
       }
+
       if (timeSlots.length > 0) {
         setDocSlots(prev => [...prev, timeSlots]);
       }
@@ -60,9 +64,43 @@ const Appointment = () => {
     }
   }, [docInfo]);
 
-  const handleBookAppointment = () => {
-    // You can add logic to handle booking the appointment, e.g., API call
-    alert(`Appointment booked on ${docSlots[selectedDateIndex][0].datetime.toLocaleDateString()} at ${selectedTimeSlot}`);
+  const handleBookAppointment = async () => {
+    if (!token) {
+      toast.warn('Login to book appointment');
+      return navigate('/login');
+    }
+
+    try {
+      const date = docSlots[selectedDateIndex][0].datetime;
+      let day = date.getDate();
+      let month = date.getMonth() + 1;
+      let year = date.getFullYear();
+      
+      const slotDate = `${year}-${month}-${day}`;
+
+      const response = await axios.post(
+        `${backendUrl}/api/user/book-appointment`, 
+        { docId, slotDate, slotTime: selectedTimeSlot },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (response.data.success) {
+        toast.success(response.data.message);
+        getDoctorsData(); // Refresh doctors' data
+        getAvailableSlots(); // Refresh available slots after booking appointment
+        navigate('/my-appointments');
+      } else {
+        toast.error(response.data.message);
+      }
+
+    } catch (error) {
+      console.error('Error booking appointment:', error.response.data.message);
+      toast.error(error.response.data.message);
+    }
   };
 
   const handleDateSelect = (index) => {
@@ -70,8 +108,46 @@ const Appointment = () => {
     setSelectedTimeSlot(''); // Clear previously selected time slot
   };
 
+  const handleCancelAppointment = async (appointmentId) => {
+    try {
+      const response = await axios.post(
+        `${backendUrl}/api/user/cancel-appointment`, 
+        { appointmentId },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (response.data.success) {
+        toast.success('Appointment canceled successfully');
+        getDoctorsData(); // Refresh doctors' data
+        getAvailableSlots(); // Refresh available slots after cancellation
+      } else {
+        toast.error(response.data.message);
+      }
+    } catch (error) {
+      console.error('Error canceling appointment:', error.response.data.message);
+      toast.error(error.response.data.message);
+    }
+  };
+
+  const isSlotAvailable = (slotTime, slotDate) => {
+    const bookedSlots = docInfo.slots_booked[slotDate];
+    return !bookedSlots || !bookedSlots.includes(slotTime);
+  };
+
+  const filterAvailableSlots = (slots) => {
+    return slots.filter((slot) => {
+      const slotDate = `${slot.datetime.getFullYear()}-${slot.datetime.getMonth() + 1}-${slot.datetime.getDate()}`;
+      return isSlotAvailable(slot.time, slotDate);
+    });
+  };
+
   return docInfo && (
     <div>
+      {/* Doctor Info Section */}
       <div className='flex flex-col sm:flex-row gap-4'>
         <div>
           <img className='bg-primary w-full sm:max-w-72 rounded-lg' src={docInfo.image} alt={docInfo.name} />
@@ -92,6 +168,7 @@ const Appointment = () => {
         </div>
       </div>
 
+      {/* Slot Selection Section */}
       <div className='sm:ml-72 sm:pl-4 mt-4'>
         <p className='text-gray-700 font-medium'>Booking slots</p>
         <div className='flex gap-3 items-center w-full overflow-x-scroll mt-4'>
@@ -100,53 +177,58 @@ const Appointment = () => {
                             new Date().getMonth() === item[0].datetime.getMonth() &&
                             new Date().getFullYear() === item[0].datetime.getFullYear();
             
-            const isSelected = selectedDateIndex === index; // Check if this date is selected
-            
+            const isSelected = selectedDateIndex === index;
+            const slotDate = `${item[0].datetime.getFullYear()}-${item[0].datetime.getMonth() + 1}-${item[0].datetime.getDate()}`;
+
             return (
               <div
                 key={index}
-                onClick={() => handleDateSelect(isSelected ? null : index)} // Toggle selection
+                onClick={() => handleDateSelect(isSelected ? null : index)} 
                 className={`text-center py-6 min-w-16 rounded-full cursor-pointer border border-gray-300 ${isSelected ? 'bg-indigo-200 text-white' : 'hover:bg-indigo-100'} ${isToday ? 'bg-indigo-200' : ''}`}
               >
-                <p className='text-gray-900'>
-                  {item[0] && daysOfWeek[item[0].datetime.getDay()]}
-                </p>
+                <p className='text-gray-900'>{daysOfWeek[item[0].datetime.getDay()]}</p>
                 <p className='text-gray-600'>
-                  {item[0] && item[0].datetime.getDate()} {isToday && <span className="text-green-500">(Today)</span>}
+                  {item[0].datetime.getDate()} {isToday && <span className="text-green-500">(Today)</span>}
                 </p>
               </div>
             );
           })}
         </div>
 
-        {/* Show timings for the selected date */}
+        {/* Show timings for selected date */}
         {selectedDateIndex !== null && (
           <div className='mt-4'>
             <p className='text-gray-700 font-medium'>Available Timings</p>
             <div className='flex gap-3 items-center overflow-x-scroll mt-2'>
-              {docSlots[selectedDateIndex].map((slot, index) => (
-                <p
-                  key={index}
-                  onClick={() => setSelectedTimeSlot(slot.time)} // Set selected time slot
-                  className={`text-sm font-light flex-shrink-0 px-5 py-2 rounded-full cursor-pointer border border-gray-300 hover:bg-indigo-100 ${selectedTimeSlot === slot.time ? 'bg-indigo-200 text-white' : ''}`}
-                >
-                  {slot.time.toLowerCase()}
-                </p>
-              ))}
+              {filterAvailableSlots(docSlots[selectedDateIndex]).map((slot, index) => {
+                const slotDate = `${slot.datetime.getFullYear()}-${slot.datetime.getMonth() + 1}-${slot.datetime.getDate()}`;
+
+                return (
+                  <p
+                    key={index}
+                    onClick={() => setSelectedTimeSlot(slot.time)} 
+                    className={`text-sm font-light flex-shrink-0 px-5 py-2 rounded-full cursor-pointer border border-gray-300 hover:bg-indigo-100 ${selectedTimeSlot === slot.time ? 'bg-indigo-200 text-white' : ''}`}
+                  >
+                    {slot.time.toLowerCase()}
+                  </p>
+                );
+              })}
             </div>
 
             {/* Book Appointment Button */}
             <button 
               onClick={handleBookAppointment} 
               className='mt-8 ml-6 px-12 py-2 bg-blue-600 text-white rounded-2xl hover:bg-indigo-200'
-              disabled={!selectedTimeSlot} // Disable if no time slot is selected
+              disabled={!selectedTimeSlot}
             >
               Book Appointment
             </button>
           </div>
         )}
       </div>
-      <RelatedDoctors docId={docId} speciality={docInfo.speciality}/>
+      
+      {/* Related Doctors Component */}
+      <RelatedDoctors docId={docId} speciality={docInfo.speciality} />
     </div>
   );
 };

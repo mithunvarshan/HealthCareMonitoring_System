@@ -1,10 +1,9 @@
-// routes/api.js
 import express from 'express';
-import { getPatientsData } from '../controllers/patientController.js';
+import { getPatientsData, addPatient } from '../controllers/patientController.js';
 
 const patientRouter = express.Router();
 
-// Route to get patient data
-patientRouter.get('/patients', getPatientsData);
+patientRouter.get('/getPatientsData', getPatientsData);  // Get patient data
+patientRouter.post('/addpatients', addPatient);      // Add patient with API keys
 
 export default patientRouter;

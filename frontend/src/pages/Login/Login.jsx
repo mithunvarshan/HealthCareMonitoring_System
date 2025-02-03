@@ -2,6 +2,7 @@ import { useState, useContext } from 'react';
 import { AppContext } from '../../context/AppContext'; // Adjust the import path as necessary
 import axios from 'axios'; 
 import { toast } from 'react-toastify'; 
+import { useNavigate } from 'react-router-dom';
 
 const Login = () => {
   const { setToken, backendUrl } = useContext(AppContext); // Get setToken and backendUrl from context
@@ -9,6 +10,7 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [state, setState] = useState('Login'); // Toggle between 'Login' and 'Sign Up'
+  const navigate = useNavigate();
 
   const onSubmitHandler = async (event) => {
     event.preventDefault();
@@ -38,14 +40,16 @@ const Login = () => {
         if (response.data.success) {
           setToken(response.data.token); // Set the token in context
           toast.success("Login successful!"); 
-          // Redirect or perform additional actions here if needed
+          navigate('/');
         } else {
           toast.error(response.data.message || "Login failed.");
+          setState('Sign Up'); // Switch to Sign Up if login fails
         }
       }
     } catch (error) {
       console.error(error);
       toast.error("An error occurred. Please try again."); 
+      setState('Sign Up'); // Switch to Sign Up on error
     }
   };
 
@@ -78,7 +82,7 @@ const Login = () => {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="Enter your email"
-            required
+            required    
           />
         </div>
 

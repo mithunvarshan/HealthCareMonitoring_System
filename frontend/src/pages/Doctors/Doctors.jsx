@@ -59,7 +59,7 @@ const Doctors = () => {
           >
             All Doctors
           </p>
-          {['General physician', 'Gynecologist', 'Dermatologist', 'Pediatricians', 'Neurologist', 'Gastroenterologist'].map(spec => (
+          {['General_physician', 'Gynecologist', 'Dermatologist', 'Pediatricians', 'Neurologist', 'Gastroenterologist'].map(spec => (
             <p
               key={spec}
               onClick={() => handleNavigate(spec)}

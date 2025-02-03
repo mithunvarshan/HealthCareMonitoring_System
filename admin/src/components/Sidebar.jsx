@@ -1,4 +1,4 @@
-import React, { useContext } from 'react';
+import  { useContext } from 'react';
 import { AdminContext } from '../context/AdminContext';
 import { NavLink } from 'react-router-dom';
 import { assets } from '../assets/assets';
@@ -25,15 +25,15 @@ const Sidebar = () => {
                     </li>
                     <li>
                         <NavLink
-                            to='/all-appointments'
+                            to='/add-patients'
                             className={({ isActive }) =>
                                 `flex items-center gap-3 py-3.5 px-3 md:px-9 md:min-w-72 cursor-pointer transition-all duration-300 ${
                                     isActive ? 'border-primary bg-[#f2f3ff] border-r-4 font-bold text-blue-600' : ''
                                 }`
                             }
                         >
-                            <img src={assets.appointment_icon} alt="Appointments" />
-                            <p>Appointments</p>
+                            <img src={assets.appointment_icon} alt="Addpatients" />
+                            <p>Add Patients</p>
                         </NavLink>
                     </li>
                     <li>

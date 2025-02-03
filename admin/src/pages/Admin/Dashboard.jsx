@@ -9,7 +9,7 @@ const Dashboard = () => {
     // Function to fetch patient data
     const fetchPatientsData = async () => {
         try {
-            const response = await axios.get('http://localhost:4000/api/patients');
+            const response = await axios.get('http://localhost:4000/api/getPatientsData');
             setPatients(response.data.data);
         } catch (error) {
             setError(error.message);

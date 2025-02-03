@@ -15,6 +15,6 @@ font-family:Outfit;
 /* App.css or global.css */
 @media (max-width: 740px) {
   .active p {
-    @apply text-white bg-primary;
+    @apply text-white bg-cyan-600;
   }
 }

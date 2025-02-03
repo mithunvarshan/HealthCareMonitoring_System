@@ -6,16 +6,13 @@ import { assets } from '/src/assets/assets_frontend/assets';
 const Navbar = () => {
   const navigate = useNavigate();
   const [showMenu, setShowMenu] = useState(false);
-  const { token, setToken } = useContext(AppContext); // Access token and setToken from context
+  const { token, setToken, userData } = useContext(AppContext); // Access token, setToken, and userData from context
 
   return (
     <div className='flex items-center justify-between text-sm py-4 mb-5 border-b'>
-      <img
-        onClick={() => navigate('/')}
-        className='w-44 cursor-pointer'
-        src={assets.logo}
-        alt="Logo"
-      />
+      <h1 className="text-4xl font-bold text-brown tracking-wider drop-shadow-md">
+        Viveksha
+      </h1>
 
       {/* Desktop Navigation Links */}
       <ul className='hidden md:flex items-start gap-5 font-medium'>
@@ -23,7 +20,7 @@ const Navbar = () => {
           <NavLink
             key={index}
             to={path}
-            className={({ isActive }) => (isActive ? 'active py-1 text-blue-700' : 'py-1')}
+            className={({ isActive }) => (isActive ? 'active py-1 text-green-500' : 'py-1')}
           >
             <li>{path.toUpperCase().slice(1) || 'HOME'}</li>
             <hr className='border-none outline-none h-0.5' />
@@ -35,7 +32,12 @@ const Navbar = () => {
         {/* Conditional for Logged-In User */}
         {token ? (
           <div className='flex items-center gap-2 cursor-pointer group relative'>
-            <img className='w-8 rounded-full' src={assets.profile_pic} alt="Profile" />
+            {/* Display Profile Image */}
+            <img
+              className='w-8 rounded-full'
+              src={userData?.image || assets.profile_pic} // Fallback to default image if userData is unavailable
+              alt="Profile"
+            />
             <img className='w-2.5' src={assets.dropdown_icon} alt="Dropdown Icon" />
             {/* Dropdown Menu */}
             <div className='absolute top-0 right-0 pt-14 text-base font-medium text-gray-600 z-20 hidden group-hover:block'>

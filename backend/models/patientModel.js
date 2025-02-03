@@ -7,8 +7,11 @@ const patientSchema = new mongoose.Schema({
     doctor: String,
     room: String,
     bed: String,
-    // Other fields as needed
+    thingSpeakChannelId: String, // Store ThingSpeak Channel ID
+    thingSpeakReadApiKey: String,
+    heartbeatLevel: { type: String, default: "N/A" },
+    oxygenLevel: { type: String, default: "N/A" } // Store ThingSpeak Read API Key
 });
 
-const patientModel =mongoose.model('Patient', patientSchema);
-export default patientModel;
+const PatientModel = mongoose.model('Patient', patientSchema);
+export default PatientModel;

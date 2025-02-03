@@ -1,43 +1,84 @@
-// controllers/patientController.js
 import PatientModel from '../models/patientModel.js';
 import axios from 'axios';
+import { io } from '../server.js';
 
-// Fetch patient details along with heartbeat level and oxygen level from ThingSpeak
-const getPatientsData = async (req, res) => {
+// Function to add a new patient and notify clients
+const addPatient = async (req, res) => {
     try {
-        // Fetch patient details from MongoDB
-        const patients = await PatientModel.find({});
+        const { name, guardianName, disease, doctor, room, bed, thingSpeakChannelId, thingSpeakReadApiKey } = req.body;
 
-        // Define your ThingSpeak Channel ID and API Key from your .env file
-        const CHANNEL_ID = process.env.THINGSPEAK_CHANNEL_ID;
-        const API_KEY = process.env.THINGSPEAK_READ_API_KEY;
+        // Validate required fields
+        if (!name || !guardianName || !disease || !doctor || !room || !bed || !thingSpeakChannelId || !thingSpeakReadApiKey) {
+            return res.json({ success: false, message: "All fields, including ThingSpeak API keys, are required." });
+        }
 
-        // Fetch data from ThingSpeak for heartbeat level
-        const heartbeatResponse = await axios.get(`https://api.thingspeak.com/channels/${CHANNEL_ID}/fields/1.json?api_key=${API_KEY}&results=1`);
-        const heartbeatData = heartbeatResponse.data.feeds; // Assuming field 1 is for heartbeat level
-
-        // Fetch data from ThingSpeak for oxygen level
-        const oxygenResponse = await axios.get(`https://api.thingspeak.com/channels/${CHANNEL_ID}/fields/2.json?api_key=${API_KEY}&results=1`);
-        const oxygenData = oxygenResponse.data.feeds; // Assuming field 2 is for oxygen level
-
-        // Combine patient data with sensor data
-        const combinedData = patients.map((patient, index) => {
-            // Only provide heartbeat and oxygen level data for the first patient
-            const heartbeatLevel = (index === 0 && heartbeatData.length > 0) ? heartbeatData[0]?.field1 : "N/A"; // Default to "N/A" for others
-            const oxygenLevel = (index === 0 && oxygenData.length > 0) ? oxygenData[0]?.field2 : "N/A"; // Default to "N/A" for others
-            
-            return {
-                ...patient._doc,
-                heartbeatLevel,
-                oxygenLevel,
-            };
+        // Create new patient entry
+        const newPatient = new PatientModel({
+            name,
+            guardianName,
+            disease,
+            doctor,
+            room,
+            bed,
+            thingSpeakChannelId,
+            thingSpeakReadApiKey
         });
 
-        res.json({ success: true, data: combinedData });
+        await newPatient.save();
+
+        // Notify all clients about the new patient
+        io.emit("patientAdded", newPatient);
+
+        res.json({ success: true, message: "Patient added successfully.", data: newPatient });
+    } catch (error) {
+        console.error(error);
+        res.json({ success: false, message: "Failed to add patient." });
+    }
+};
+
+// Function to fetch and update sensor data
+const updatePatientSensorData = async () => {
+    try {
+        const patients = await PatientModel.find({});
+        let updatedPatients = [];
+
+        await Promise.all(patients.map(async (patient) => {
+            if (patient.thingSpeakChannelId && patient.thingSpeakReadApiKey) {
+                try {
+                    const heartbeatResponse = await axios.get(`https://api.thingspeak.com/channels/${patient.thingSpeakChannelId}/fields/1.json?api_key=${patient.thingSpeakReadApiKey}&results=1`);
+                    const heartbeatLevel = heartbeatResponse.data.feeds.length > 0 ? heartbeatResponse.data.feeds[0].field1 : "N/A";
+
+                    const oxygenResponse = await axios.get(`https://api.thingspeak.com/channels/${patient.thingSpeakChannelId}/fields/2.json?api_key=${patient.thingSpeakReadApiKey}&results=1`);
+                    const oxygenLevel = oxygenResponse.data.feeds.length > 0 ? oxygenResponse.data.feeds[0].field2 : "N/A";
+
+                    // Update database
+                    const updatedPatient = await PatientModel.findByIdAndUpdate(patient._id, { heartbeatLevel, oxygenLevel }, { new: true });
+                    updatedPatients.push(updatedPatient);
+                } catch (error) {
+                    console.error(`Error updating ThingSpeak data for ${patient.name}:`, error);
+                }
+            }
+        }));
+
+        // Emit updated data to all connected clients
+        io.emit("patientDataUpdated", updatedPatients);
+    } catch (error) {
+        console.error("Error updating sensor data:", error);
+    }
+};
+
+// Function to get all patients
+const getPatientsData = async (req, res) => {
+    try {
+        const patients = await PatientModel.find({});
+        res.json({ success: true, data: patients });
     } catch (error) {
         console.error(error);
         res.json({ success: false, message: error.message });
     }
 };
 
-export { getPatientsData };
+// Schedule updates every minute
+setInterval(updatePatientSensorData, 60 * 1000);
+
+export { addPatient, getPatientsData, updatePatientSensorData };
