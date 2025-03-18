@@ -1,7 +1,8 @@
 import doctorModel from "../models/doctorModel.js"; // Correct import path
 
 // API to change the availability status of a doctor
-const changeAvailability = async (req, res) => {
+const changeAvailability = async (req, res) => 
+    {
     try {
         const { docId } = req.body; // Extract doctor ID from request body
 
